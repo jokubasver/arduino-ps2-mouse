@@ -38,7 +38,7 @@ private:
 
     void setRemoteMode();
 
-    void waitForClockState(int expectedState);
+    bool waitForClockState(int expectedState);
 
     void requestData();
 

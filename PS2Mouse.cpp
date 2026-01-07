@@ -5,6 +5,9 @@
 #define SCALING_1_TO_1 0xE6
 #define RESOLUTION_8_COUNTS_PER_MM 3
 
+#define PS2_TIMEOUT_US      20000UL   // 20 ms, generous for PS/2
+#define PS2_STARTUP_DELAY_MS 300      // mouse power-on settle time
+
 enum Commands {
     SET_RESOLUTION = 0xE8,
     REQUEST_DATA = 0xEB,
@@ -21,7 +24,7 @@ PS2Mouse::PS2Mouse(int clockPin, int dataPin) {
 }
 
 void PS2Mouse::high(int pin) {
-    pinMode(pin, INPUT);
+    pinMode(pin, INPUT_PULLUP);
     digitalWrite(pin, HIGH);
 }
 
@@ -33,6 +36,7 @@ void PS2Mouse::low(int pin) {
 void PS2Mouse::initialize() {
     high(_clockPin);
     high(_dataPin);
+	delay(PS2_STARTUP_DELAY_MS);
     reset();
     checkIntelliMouseExtensions();
     setResolution(RESOLUTION_8_COUNTS_PER_MM);
@@ -172,9 +176,14 @@ void PS2Mouse::setResolution(int resolution) {
     writeAndReadAck(resolution);
 }
 
-void PS2Mouse::waitForClockState(int expectedState) {
-    while (digitalRead(_clockPin) != expectedState)
-        ;
+bool PS2Mouse::waitForClockState(int expectedState) {
+    unsigned long start = micros();
+    while (digitalRead(_clockPin) != expectedState) {
+        if ((micros() - start) > PS2_TIMEOUT_US) {
+            return false;  // timeout
+        }
+    }
+    return true;
 }
 
 MouseData PS2Mouse::readData() {
